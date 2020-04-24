@@ -1,8 +1,3 @@
-def update():
-    print("Updating 2b2t-RPC...")
-    subprocess.run([sys.executable, "-m", "pip", "install", "-U", "pypresence"])
-
-
 def main():
     from datetime import date, datetime, time
     from pathlib import Path
@@ -14,10 +9,10 @@ def main():
     rpc = Client(673133177274892290)
     rpc.start()
 
+    user = ""
     start = None
     pos = []
     est = "None"
-    user = ""
     state = 0
 
     sys = system()
@@ -38,11 +33,11 @@ def main():
                     if text.startswith("[main/INFO]: Setting user: "):
                         user = text[27:]
                     elif text.startswith("[main/INFO]: Connecting to "):
-                        start = None
-                        pos = []
+                        est = "None"
                         state = 1
                     elif text == "[main/INFO]: [CHAT] 2b2t is full":
                         start = int(t)
+                        pos = []
                         state = 2
                     elif text.startswith("[main/INFO]: [CHAT] Position in queue: "):
                         p = int(text[39:])
@@ -63,10 +58,13 @@ def main():
                             est += f"{seconds % 3600 // 60}m"
 
                         state = 3
-                    elif text == "[main/INFO]: [CHAT] Connecting to the server...":
+                    elif text == "[main/INFO]: [CHAT] Connecting to the server..." or text.startswith("[main/INFO]: Loaded "):
                         pos = []
                         start = int(t)
                         state = 4
+                    elif text == "[main/INFO]: [CHAT] [SERVER] Server restarting in 15 minutes...":
+                        start = t + 900
+                        state = 5
                 except ValueError:
                     pass
             else:
@@ -79,14 +77,9 @@ def main():
                     sleep(10)
                 elif state == 4:
                     rpc.set_activity(large_image="image", large_text="2b2t.org", details="Playing", start=start)
+                elif state == 5:
+                    rpc.set_activity(large_image="image", large_text="2b2t.org", details="Waiting for a restart...", end=start)
 
 
 if __name__ == '__main__':
-    import subprocess
-    import sys
-    if len(sys.argv) == 2 and sys.argv[1] == "--noupdate":
-        main()
-    elif len(sys.argv) != 1:
-        print("Usage: python main.py [--noupdate]")
-    update()
-    subprocess.check_call([sys.executable, sys.argv[0], "--noupdate"])
+    main()
