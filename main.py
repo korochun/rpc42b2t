@@ -15,6 +15,7 @@ from datetime import date, datetime, time
 from pathlib import Path
 from time import sleep
 
+# IDEA: Make it a package (pip install 2b2t-rpc).
 # IDEA: Make it a mod.
 
 
@@ -75,16 +76,19 @@ if __name__ == "__main__":
                                         est += f"{hours}h "
                                     est += f"{seconds % 3600 // 60}m"
 
-                            state = 3
+                            if state == 2:
+                                state = 3
                         elif text == "[main/INFO]: [CHAT] Connecting to the server..." or text.startswith("[main/INFO]: Loaded "):
                             pos = []
                             start = int(t)
                             state = 4
                         elif text.startswith("[main/INFO]: [CHAT] [SERVER] Server restarting in "):
                             if text.endswith(" minutes..."):
-                                end = t + 60 * int(text[50:-12])
+                                end = int(t) + 600 * int(text[50:-12])
                             elif text.endswith(" seconds..."):
-                                end = t + int(text[50:-12])
+                                end = int(t) + 10 * int(text[50:-11])
+                            elif text.endswith(" second..."):
+                                end = int(t) + 10 * int(text[50:-10])
                             state = 5
                         elif text == "[main/INFO]: Stopping!":
                             break
@@ -101,10 +105,12 @@ if __name__ == "__main__":
                     elif state == 4:
                         rpc.set_activity(large_image="image", large_text="2b2t.org", details="Playing", start=start)
                     elif state == 5:
-                        rpc.set_activity(large_image="image", large_text="2b2t.org", details="Waiting for restart...", end=start)
+                        rpc.set_activity(large_image="image", large_text="2b2t.org", details=f"Waiting for restart...", state=f"Position in queue: {pos[-1][1]}", end=end)
                     if os.stat(f.fileno()).st_nlink == 0:
                         f.close()
                         f = open(file)
+    except KeyboardInterrupt:
+        pass
     finally:
         print("\nStopping RPC...")
         rpc.close()
