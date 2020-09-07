@@ -1,27 +1,15 @@
-########################################
-# 2b2t-RPC main.py                     #
-# (c) Michael Gavrilin                 #
-########################################
-
-import os, platform
-
-try:
-    import pypresence
-except ImportError:
-    print("Please install pypresence with:\n    pip install pypresence")
-    exit(1)
-
 from datetime import date, datetime, time
+from os import stat
 from pathlib import Path
+from platform import system
 from time import sleep
 
-# IDEA: Make it a package (pip install 2b2t-rpc).
-# IDEA: Make it a mod.
+from pypresence import Client as RPC
 
 
-if __name__ == "__main__":
+def main():
     print("Starting RPC...")
-    rpc = pypresence.Client(673133177274892290)
+    rpc = RPC(673133177274892290)
     rpc.start()
 
     try:
@@ -31,22 +19,26 @@ if __name__ == "__main__":
         est = "None"
         state = 0
 
-        sys = platform.system()
+        sys = system()  # Find Minecraft game dir
         if sys == "Windows":
             file = Path("AppData") / "Roaming" / ".minecraft"
         elif sys == "Darwin":
             file = Path("Library") / "Application Support" / "minecraft"
         elif sys == "Linux":
             file = ".minecraft"
+        else:
+            print("Unknown system, unable to find game dir")
         file = Path.home() / file / "logs" / "latest.log"
 
-        with open(file) as f:    # TODO: Read previous logs if data is insufficient.
+        with open(file) as f:  # TODO: Read previous logs if data is insufficient.
             while True:
                 line = f.readline()
                 if line:
                     text = line[11:-1]
                     try:
-                        t = datetime.combine(date.today(), time.fromisoformat(line[1:9])).timestamp()
+                        t = datetime.combine(
+                            date.today(), time.fromisoformat(line[1:9])
+                        ).timestamp()
                         if text.startswith("[main/INFO]: Connecting to "):
                             end = None
                             est = "None"
@@ -66,8 +58,12 @@ if __name__ == "__main__":
                                     est = "never"
                                 else:
                                     est = ""
-                                    seconds = (t - pos[0][0]) / (pos[0][1] - p)    # FIXME: Time is negative when you're a time traveller.
-                                    seconds = int(seconds * p)                     # TODO: Rework the estimations.
+                                    seconds = (t - pos[0][0]) / (
+                                        pos[0][1] - p
+                                    )  # FIXME: Time is negative when you're a time traveller.
+                                    seconds = int(
+                                        seconds * p
+                                    )  # TODO: Rework the estimations.
                                     days = seconds // 86400
                                     if days:
                                         est += f"{days}d "
@@ -78,11 +74,16 @@ if __name__ == "__main__":
 
                             if state == 2:
                                 state = 3
-                        elif text == "[main/INFO]: [CHAT] Connecting to the server..." or text.startswith("[main/INFO]: Loaded "):
+                        elif (
+                            text == "[main/INFO]: [CHAT] Connecting to the server..."
+                            or text.startswith("[main/INFO]: Loaded ")
+                        ):
                             pos = []
                             start = int(t)
                             state = 4
-                        elif text.startswith("[main/INFO]: [CHAT] [SERVER] Server restarting in "):
+                        elif text.startswith(
+                            "[main/INFO]: [CHAT] [SERVER] Server restarting in "
+                        ):
                             if text.endswith(" minutes..."):
                                 end = int(t) + 600 * int(text[50:-12])
                             elif text.endswith(" seconds..."):
@@ -91,22 +92,49 @@ if __name__ == "__main__":
                                 end = int(t) + 10 * int(text[50:-10])
                             state = 5
                         elif text == "[main/INFO]: Stopping!":
+                            print("Hi!")
                             break
                     except ValueError:
                         pass
                 else:
                     if state == 1:
-                        rpc.set_activity(large_image="image", large_text="2b2t.org", details="Connecting...")
+                        rpc.set_activity(
+                            large_image="image",
+                            large_text="2b2t.org",
+                            details="Connecting...",
+                        )
                     elif state == 2:
-                        rpc.set_activity(large_image="image", large_text="2b2t.org", details="Waiting in queue", start=start)
+                        rpc.set_activity(
+                            large_image="image",
+                            large_text="2b2t.org",
+                            details="Waiting in queue",
+                            start=start,
+                        )
                     elif state == 3:
-                        rpc.set_activity(large_image="image", large_text="2b2t.org", details=f"Position in queue: {pos[-1][1]}", state="Estimated time: " + est, start=start)
+                        rpc.set_activity(
+                            large_image="image",
+                            large_text="2b2t.org",
+                            details=f"Position in queue: {pos[-1][1]}",
+                            state="Estimated time: " + est,
+                            start=start,
+                        )
                         sleep(10)
                     elif state == 4:
-                        rpc.set_activity(large_image="image", large_text="2b2t.org", details="Playing", start=start)
+                        rpc.set_activity(
+                            large_image="image",
+                            large_text="2b2t.org",
+                            details="Playing",
+                            start=start,
+                        )
                     elif state == 5:
-                        rpc.set_activity(large_image="image", large_text="2b2t.org", details=f"Waiting for restart...", state=f"Position in queue: {pos[-1][1]}", end=end)
-                    if os.stat(f.fileno()).st_nlink == 0:
+                        rpc.set_activity(
+                            large_image="image",
+                            large_text="2b2t.org",
+                            details=f"Waiting for restart...",
+                            state=f"Position in queue: {pos[-1][1]}",
+                            end=end,
+                        )
+                    if stat(f.fileno()).st_nlink == 0:
                         f.close()
                         f = open(file)
     except KeyboardInterrupt:
